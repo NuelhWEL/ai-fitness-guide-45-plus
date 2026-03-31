@@ -1,0 +1,49 @@
+import streamlit as st
+import requests
+import os
+
+st.set_page_config(page_title="AI Fitness Guide 45+", page_icon="💪", layout="centered")
+st.title("💪 AI Fitness Guide for 45+")
+st.write("AI VERSION STABLE FINAL")
+
+API_URL = "https://router.huggingface.co/v1/chat/completions"
+
+headers = {
+    "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
+    "Content-Type": "application/json"
+}
+
+with st.form("fitness_form"):
+    user_input = st.text_input("Describe your fitness needs:")
+    submitted = st.form_submit_button("Get Recommendations")
+
+if submitted:
+    if not user_input.strip():
+        st.warning("⚠️ Please enter your fitness needs")
+    else:
+        st.subheader("AI Recommendations")
+
+        payload = {
+            "model": "meta-llama/Llama-3.1-8B-Instruct",  # or another instruction model you have access to
+            "messages": [
+                {"role": "system", "content": "You are a professional fitness coach."},
+                {"role": "user", "content": f"Provide 2 safe fitness tips for someone over 45: {user_input}"}
+            ],
+            "temperature": 0.7,
+            "max_tokens": 250
+        }
+
+        try:
+            response = requests.post(API_URL, headers=headers, json=payload)
+            st.write("Status Code:", response.status_code)
+
+            if response.status_code != 200:
+                st.error(f"API returned an error: {response.text}")
+            else:
+                data = response.json()
+                # OpenAI‑style responses include data["choices"]
+                text = data["choices"][0]["message"]["content"]
+                st.write(text)
+
+        except Exception as e:
+            st.error(f"Request failed: {e}")
