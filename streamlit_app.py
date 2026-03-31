@@ -1,8 +1,10 @@
 import streamlit as st
 import requests
-import os
 import re
 
+# -------------------------------
+# Streamlit Page Config
+# -------------------------------
 st.set_page_config(
     page_title="AI Fitness Guide 45+",
     page_icon="💪",
@@ -12,13 +14,24 @@ st.set_page_config(
 st.title("💪 AI Fitness Guide for 45+")
 st.write("📝 Fully automated recommendations — all tips displayed at once")
 
+# -------------------------------
+# Hugging Face API Config
+# -------------------------------
 API_URL = "https://router.huggingface.co/v1/chat/completions"
+HF_TOKEN = st.secrets.get("HF_TOKEN")  # Set in Streamlit Secrets
+
+if not HF_TOKEN:
+    st.error("⚠️ Hugging Face API token is missing! Add it to Streamlit Secrets.")
+    st.stop()
+
 headers = {
-    "Authorization": f"Bearer {os.getenv('HF_TOKEN')}",
+    "Authorization": f"Bearer {HF_TOKEN}",
     "Content-Type": "application/json"
 }
 
+# -------------------------------
 # Fix common truncation errors
+# -------------------------------
 TRUNCATED_FIXES = {
     r"painn": "pain",
     r"downn": "down",
@@ -36,12 +49,18 @@ def fix_truncation(text):
         text = re.sub(pattern, replacement, text)
     return text
 
+# -------------------------------
+# User Input Form
+# -------------------------------
 with st.form("fitness_form"):
     user_input = st.text_input(
         "Describe your fitness needs (e.g., knee pain, mobility, lose weight, build strength):"
     )
     submitted = st.form_submit_button("Get Recommendations")
 
+# -------------------------------
+# Handle Submission
+# -------------------------------
 if submitted:
     if not user_input.strip():
         st.warning("⚠️ Please enter your fitness needs")
@@ -68,18 +87,15 @@ if submitted:
 
         try:
             response = requests.post(API_URL, headers=headers, json=payload)
-            st.write("Status Code:", response.status_code)
-
             if response.status_code != 200:
-                st.error(f"API returned an error: {response.text}")
+                st.error(f"API returned an error ({response.status_code}): {response.text}")
             else:
                 data = response.json()
                 ai_text = data["choices"][0]["message"]["content"].strip()
                 ai_text = fix_truncation(ai_text)
 
-                # Split tips by "Tip" headings
-                tips = re.split(r'(?:Tip\s*\d+[:\s]*)', ai_text)
-                tips = [t.strip() for t in tips if t.strip()]
+                # Split tips safely
+                tips = [t.strip() for t in re.split(r'\n{2,}', ai_text) if t.strip()]
 
                 # Display all tips fully
                 for idx, tip in enumerate(tips, start=1):
